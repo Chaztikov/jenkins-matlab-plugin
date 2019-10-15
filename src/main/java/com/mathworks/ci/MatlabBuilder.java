@@ -138,6 +138,14 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
                 @SuppressWarnings("rawtypes") Class<? extends AbstractProject> jobtype) {
             return true;
         }
+        
+        /*
+         *  Populates the list of installations available in the tools section.
+         */
+        public MatlabInstallation[] getInstallations() {
+            // Delegate
+            return MatlabInstallation.list();
+        }
 
         /*
          * below descriptor will get the values of Runtype descriptors and will assign it to the
@@ -162,6 +170,12 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
             listOfCheckMethods.add(chkMatlabSupportsRunTests);
 
             return getFirstErrorOrWarning(listOfCheckMethods, matlabRoot);
+        }
+        
+        public FormValidation doCheckTestRunTypeList(@QueryParameter TestRunTypeList testRunTypeList) {
+          
+                return FormValidation.warning("This Option will be deprected soon, Consider moving all your custom option builds to the new  Run MATLAB builder option");
+            
         }
 
         public FormValidation getFirstErrorOrWarning(

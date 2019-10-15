@@ -4,5 +4,7 @@
 	  <f:entry title="MATLAB command" field="customMatlabCommand">
 	        <f:textbox/>
 	  </f:entry> 
-
+      <f:entry>
+      <h4><font color="red">Custom test Option will be deprected soon, Consider reconfiguring all your custom option builds using new  Run MATLAB builder option.</font></h4>
+      </f:entry>
 </j:jelly>
