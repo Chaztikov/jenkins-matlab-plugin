@@ -4,7 +4,7 @@
  <f:section>
 	  <!--<f:entry title="MATLAB root " field="matlabRoot">
 	        <f:textbox/>
-	  </f:entry> -->
+	  </f:entry>-->
 	  
 	<f:entry title="MATLAB Version" field="matlabRoot">
       <select class="setting-input" name="matlabRoot">

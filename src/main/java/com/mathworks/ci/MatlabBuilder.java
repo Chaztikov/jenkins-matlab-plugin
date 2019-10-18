@@ -25,6 +25,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
+import com.mathworks.ci.MatlabInstallation.DescriptorImpl;
 import hudson.DescriptorExtensionList;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -40,6 +42,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
+import hudson.tools.ToolDescriptor;
 import hudson.util.FormValidation;
 import hudson.util.FormValidation.Kind;
 import jenkins.model.Jenkins;
@@ -53,7 +56,8 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
     private static final double BASE_MATLAB_VERSION_COBERTURA_SUPPORT = 9.3;
     private int buildResult;
     private TestRunTypeList testRunTypeList;
-    private String matlabRoot;
+    protected String matlabRoot;
+    protected String matlabRoott;
     private EnvVars env;
     private static final String MATLAB_RUNNER_TARGET_FILE =
             "Builder.matlab.runner.target.file.name";
@@ -90,7 +94,9 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
     }
     
     private String getLocalMatlab() {
-        return this.env == null ? getMatlabRoot(): this.env.expand(getMatlabRoot());
+        //return this.env == null ? getMatlabRoot(): this.env.expand(getMatlabRoot());
+        MatlabInstallation install = MatlabInstallation.fromName(getMatlabRoot());
+        return this.env == null ? install.getHome(): this.env.expand(install.getHome());
     }
     
     private String getCustomMatlabCommand() {
@@ -99,6 +105,26 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
     }
     private void setEnv(EnvVars env) {
         this.env = env;
+    }
+    
+    @DataBoundSetter
+    public void setMatlabRoott(String matlabRoott) {
+        this.matlabRoott = matlabRoott;
+    }
+    
+    public String getMatlabRoott() {
+
+        return this.matlabRoott;
+    }
+    
+    protected Object readResolve() {
+        if(matlabRoot != null) {
+            MatlabInstallation matlab = new MatlabInstallation("default", matlabRoot, null, false, false);
+            Jenkins.getInstance().getDescriptorByType(DescriptorImpl.class).setInstallations(matlab);
+            this.setMatlabRoot(matlab.getName());
+            
+        }
+        return this;
     }
 
     @Extension
