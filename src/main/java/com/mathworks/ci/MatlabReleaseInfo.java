@@ -6,20 +6,25 @@ package com.mathworks.ci;
  */
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.NotDirectoryException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.commons.collections.MapUtils;
+import org.jenkinsci.remoting.RoleChecker;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.FilePath;
+import hudson.FilePath.FileCallable;
+import hudson.remoting.VirtualChannel;
 
 public class MatlabReleaseInfo {
-    private String matlabRoot;
+    private FilePath matlabRoot;
     private static final String VERSION_INFO_FILE = "VersionInfo.xml";
     private static final String VERSION_INFO_ROOT_TAG = "MathWorks_version_info";
     private static final String RELEASE_TAG = "release";
@@ -36,8 +41,13 @@ public class MatlabReleaseInfo {
     private Map<String, String> versionInfoCache = new HashMap<String, String>();
 
     public MatlabReleaseInfo(String matlabRoot) {
+        this.matlabRoot = new FilePath(new File(matlabRoot));
+    }
+    
+    public MatlabReleaseInfo(FilePath matlabRoot) {
         this.matlabRoot = matlabRoot;
     }
+
 
     public String getFullMatlabVersionNumber() throws MatlabVersionNotFoundException {
         Map<String, String> fullVersionNumber = getVersionInfoFromFile();
@@ -73,33 +83,11 @@ public class MatlabReleaseInfo {
     private Map<String, String> getVersionInfoFromFile() throws MatlabVersionNotFoundException {
         if (MapUtils.isEmpty(versionInfoCache)) {
             try {
-                File versionFile = new File(this.matlabRoot + File.separator + VERSION_INFO_FILE);
-                if(versionFile.isFile()) {
-                    DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-                    DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-                    Document doc = dBuilder.parse(versionFile);
-
-                    doc.getDocumentElement().normalize();
-                    NodeList nList = doc.getElementsByTagName(VERSION_INFO_ROOT_TAG);
-
-                    for (int temp = 0; temp < nList.getLength(); temp++) {
-                        Node nNode = nList.item(temp);
-                        if (nNode.getNodeType() == Node.ELEMENT_NODE) {
-
-                            Element eElement = (Element) nNode;
-
-                            versionInfoCache.put(RELEASE_TAG, eElement.getElementsByTagName(RELEASE_TAG)
-                                    .item(0).getTextContent());
-                            versionInfoCache.put(VERSION_TAG, eElement.getElementsByTagName(VERSION_TAG)
-                                    .item(0).getTextContent());
-                            versionInfoCache.put(DESCRIPTION_TAG, eElement
-                                    .getElementsByTagName(DESCRIPTION_TAG).item(0).getTextContent());
-                            versionInfoCache.put(DATE_TAG,
-                                    eElement.getElementsByTagName(DATE_TAG).item(0).getTextContent());
-                        }
-                    }
+                FilePath versionFile = new FilePath(this.matlabRoot, VERSION_INFO_FILE);
+                if(versionFile.exists()) {
+                    versionInfoCache.putAll(versionFile.act(new FileOperation()));
                 }
-                else if(!new File(this.matlabRoot).exists()){
+                else if(!this.matlabRoot.exists()){
                     throw new NotDirectoryException("Invalid matlabroot path");
                 }else {
                     versionInfoCache.putAll(VERSION_OLDER_THAN_17A);
@@ -112,4 +100,62 @@ public class MatlabReleaseInfo {
         }
         return versionInfoCache;
     }
+    
+    //Static File callable to execute the file operation on remote.
+    
+    private static final class FileOperation implements FileCallable<Map<String,String>>{
+        /**
+         * 
+         */
+        private static final long serialVersionUID = 1L;
+        private Map<String, String> versionInfoCache = new HashMap<String, String>();
+
+        @Override
+        public void checkRoles(RoleChecker checker) throws SecurityException {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public Map<String, String> invoke(File versionFile, VirtualChannel channel)
+                throws IOException, InterruptedException {
+            try {
+                DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+                DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+                Document doc = dBuilder.parse(versionFile);
+
+                doc.getDocumentElement().normalize();
+                NodeList nList = doc.getElementsByTagName(VERSION_INFO_ROOT_TAG);
+
+                for (int temp = 0; temp < nList.getLength(); temp++) {
+                    Node nNode = nList.item(temp);
+                    if (nNode.getNodeType() == Node.ELEMENT_NODE) {
+
+                        Element eElement = (Element) nNode;
+
+                        versionInfoCache.put(RELEASE_TAG, eElement.getElementsByTagName(RELEASE_TAG)
+                                .item(0).getTextContent());
+                        versionInfoCache.put(VERSION_TAG, eElement.getElementsByTagName(VERSION_TAG)
+                                .item(0).getTextContent());
+                        versionInfoCache.put(DESCRIPTION_TAG, eElement
+                                .getElementsByTagName(DESCRIPTION_TAG).item(0).getTextContent());
+                        versionInfoCache.put(DATE_TAG,
+                                eElement.getElementsByTagName(DATE_TAG).item(0).getTextContent());
+                    }
+                }
+            } catch (Exception e) {
+                try {
+                    throw new MatlabVersionNotFoundException("",e);
+                } catch (MatlabVersionNotFoundException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                }
+                
+            }
+            
+            return versionInfoCache;
+        }  
+    }
+    
+    
 }

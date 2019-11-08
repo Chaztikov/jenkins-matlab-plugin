@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.tools.ant.taskdefs.Parallel.TaskList;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -54,11 +55,14 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
     private static final double BASE_MATLAB_VERSION_RUNTESTS_SUPPORT = 8.1;
     private static final double BASE_MATLAB_VERSION_BATCH_SUPPORT = 9.5;
     private static final double BASE_MATLAB_VERSION_COBERTURA_SUPPORT = 9.3;
+    private String FILE_SEPARATOR;
     private int buildResult;
     private TestRunTypeList testRunTypeList;
     protected String matlabRoot;
     protected String matlabRoott;
     private EnvVars env;
+    private Launcher launcher;
+    private TaskListener listener;
     private static final String MATLAB_RUNNER_TARGET_FILE =
             "Builder.matlab.runner.target.file.name";
     private static final String MATLAB_RUNNER_RESOURCE =
@@ -93,10 +97,25 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
         return this.testRunTypeList;
     }
     
+    private void setLauncher(Launcher launcher) {
+        this.launcher = launcher;
+    }
+    
+    private Launcher getLauncher() {
+        return this.launcher;
+    }
+    
     private String getLocalMatlab() {
         //return this.env == null ? getMatlabRoot(): this.env.expand(getMatlabRoot());
-        MatlabInstallation install = MatlabInstallation.fromName(getMatlabRoot());
-        return this.env == null ? install.getHome(): this.env.expand(install.getHome());
+        MatlabInstallation install = MatlabInstallation.fromName(getMatlabRoott());
+        String matlabHome = install.getHome();
+        //return this.env == null ? install.getHome(): this.env.expand(install.getHome());
+        try {
+            matlabHome =  this.env == null ? matlabHome: install.forBuild(getListener(), this.env).getHome();
+        } catch (Exception e) {
+           e.printStackTrace();
+        } 
+        return matlabHome;
     }
     
     private String getCustomMatlabCommand() {
@@ -106,7 +125,13 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
     private void setEnv(EnvVars env) {
         this.env = env;
     }
+    private void setTaskListener(TaskListener listener) {
+       this.listener = listener;    
+    }
     
+    public TaskListener getListener() {
+        return this.listener;
+    }
     @DataBoundSetter
     public void setMatlabRoott(String matlabRoott) {
         this.matlabRoott = matlabRoott;
@@ -118,10 +143,10 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
     }
     
     protected Object readResolve() {
-        if(matlabRoot != null) {
-            MatlabInstallation matlab = new MatlabInstallation("default", matlabRoot, null, false, false);
+        if(matlabRoot != null || !matlabRoot.isEmpty()) {
+            MatlabInstallation matlab = new MatlabInstallation("default", matlabRoot, null);
             Jenkins.getInstance().getDescriptorByType(DescriptorImpl.class).setInstallations(matlab);
-            this.setMatlabRoot(matlab.getName());
+            this.setMatlabRoott(matlab.getName());
             
         }
         return this;
@@ -433,7 +458,7 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
             @Nonnull Launcher launcher, @Nonnull TaskListener listener)
             throws InterruptedException, IOException {        
         final boolean isLinuxLauncher = launcher.isUnix();
-        
+        this.FILE_SEPARATOR = getNodeSpecificFileSeperator(launcher);
         // Invoke MATLAB command and transfer output to standard
         // Output Console
 
@@ -448,12 +473,15 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
             TaskListener listener, boolean isLinuxLauncher)
             throws IOException, InterruptedException {
         setEnv(build.getEnvironment(listener));
+        setLauncher(launcher);
+        setTaskListener(listener);
         //Copy MATLAB scratch file into the workspace
         copyMatlabScratchFileInWorkspace(MATLAB_RUNNER_RESOURCE, MATLAB_RUNNER_TARGET_FILE,
                 workspace, getClass().getClassLoader());
+        
         ProcStarter matlabLauncher;
         try {
-            MatlabReleaseInfo rel = new MatlabReleaseInfo(getLocalMatlab());
+            MatlabReleaseInfo rel = new MatlabReleaseInfo(new FilePath(launcher.getChannel(),getLocalMatlab()));
             matlabLauncher = launcher.launch().pwd(workspace).envs(this.env);
             if (rel.verLessThan(BASE_MATLAB_VERSION_BATCH_SUPPORT)) {
                 ListenerLogDecorator outStream = new ListenerLogDecorator(listener);
@@ -486,7 +514,7 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
         }
 
         matlabDefaultArgs =
-                Arrays.asList(getLocalMatlab() + File.separator + "bin" + File.separator + "matlab",
+                Arrays.asList(getLocalMatlab() + this.FILE_SEPARATOR + "bin" + this.FILE_SEPARATOR + "matlab",
                         "-batch", runCommand);
         
         return matlabDefaultArgs;
@@ -509,7 +537,7 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
 
     private String[] getPreRunnerSwitches() {
         String[] preRunnerSwitches =
-                {getLocalMatlab() + File.separator + "bin" + File.separator + "matlab", "-nosplash",
+                {getLocalMatlab() + this.FILE_SEPARATOR + "bin" + this.FILE_SEPARATOR + "matlab", "-nosplash",
                         "-nodesktop", "-noAppIcon"};
         return preRunnerSwitches;
     }
@@ -544,10 +572,20 @@ public class MatlabBuilder extends Builder implements SimpleBuildStep {
             String matlabRunnerTarget, FilePath workspace, ClassLoader classLoader)
             throws IOException, InterruptedException {
         InputStream in = classLoader.getResourceAsStream(matlabRunnerResourcePath);
-        Path target =
-                new File(workspace.getRemote(), Message.getValue(matlabRunnerTarget)).toPath();
-
-        Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        FilePath target =
+                new FilePath(getLauncher().getChannel(), workspace.getRemote());
+        FilePath targetFile = new FilePath(target,Message.getValue(matlabRunnerTarget));
+        
+        targetFile.copyFrom(in);
+    }
+    
+    private String getNodeSpecificFileSeperator(Launcher launcher) {
+        if(launcher.isUnix()) {
+            return "/";
+        }else {
+            return "\\";
+        }
+        
     }
     
 }

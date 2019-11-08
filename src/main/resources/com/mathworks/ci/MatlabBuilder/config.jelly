@@ -2,12 +2,12 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
     
  <f:section>
-	  <!--<f:entry title="MATLAB root " field="matlabRoot">
+	 <!-- <f:entry title="MATLAB root " field="matlabRoot">
 	        <f:textbox/>
 	  </f:entry>-->
 	  
-	<f:entry title="MATLAB Version" field="matlabRoot">
-      <select class="setting-input" name="matlabRoot">
+	<f:entry title="MATLAB Version" field="matlabRoott">
+      <select class="setting-input" name="matlabRoott">
         <j:forEach var="installation" items="${descriptor.installations}">
           <f:option selected="${installation.name==instance.matlabRoot}" value="${installation.name}">${installation.name}</f:option>
         </j:forEach>
