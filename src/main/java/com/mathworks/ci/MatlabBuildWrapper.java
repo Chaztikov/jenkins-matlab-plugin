@@ -3,6 +3,8 @@ package com.mathworks.ci;
 import java.io.IOException;
 
 import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 import hudson.EnvVars;
 import hudson.Extension;
@@ -18,6 +20,31 @@ import com.mathworks.ci.MatlabInstallation.DescriptorImpl;
 
 public class MatlabBuildWrapper extends SimpleBuildWrapper  {
 	
+	private String matlabRoot;
+	private EnvVars env;
+	
+	@DataBoundConstructor
+	 public MatlabBuildWrapper() {
+
+	    }
+	
+	public String getMatlabRoot() {
+		return matlabRoot;
+	}
+
+	@DataBoundSetter
+	public void setMatlabRoot(String matlabRoot) {
+		this.matlabRoot = matlabRoot;
+	}
+	
+	private String getLocalMatlab() {
+		return this.env == null ? getMatlabRoot(): this.env.expand(getMatlabRoot());
+	}
+	
+	private void setEnv(EnvVars env) {
+	   this.env = env;
+	}
+
 	@Symbol("matlab")
 	@Extension
 	public static final class MatabBuildWrapperDescriptor extends BuildWrapperDescriptor{
@@ -47,7 +74,8 @@ public class MatlabBuildWrapper extends SimpleBuildWrapper  {
 	@Override
 	public void setUp(Context context, Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener,
 			EnvVars initialEnvironment) throws IOException, InterruptedException {
-		
+		//Set Environment variable
+		setEnv(initialEnvironment);
 		
 	}
 	 

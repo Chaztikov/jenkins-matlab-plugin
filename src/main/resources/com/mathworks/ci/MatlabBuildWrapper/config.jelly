@@ -8,5 +8,11 @@
         </j:forEach>
       </select>
     </f:entry>
+    
+    <f:optionalBlock name="customMatlab" title="Use custom MATALB installation">
+      <f:entry title="Custom MATLAB">
+        <f:textbox name="customMatlabRoot" title="MATLAB root"/>
+      </f:entry>
+    </f:optionalBlock>
 </f:section>
 </j:jelly>
