@@ -1,4 +1,4 @@
-%Copyright 2019 The MathWorks, Inc.
+%Copyright 2019-2020 The MathWorks, Inc.
 
 function failed = runMatlabTests(varargin)
 
@@ -54,17 +54,18 @@ if produceTAP
     BASE_VERSION_TAP13_SUPPORT = '9.1';
     if verLessThan('matlab',BASE_VERSION_TAPORIGINALFORMAT_SUPPORT)
         warning('MATLAB:testArtifact:tapReportNotSupported', 'Producing TAP results is not supported in this release.');
-        tapPlugin = matlab.unittest.plugins.TestRunnerPlugin.empty;
     elseif verLessThan('matlab',BASE_VERSION_TAP13_SUPPORT)
         tapFile = getTapResultFile(resultsDir);
         import('matlab.unittest.plugins.TAPPlugin');
         tapPlugin = TAPPlugin.producingOriginalFormat(tapFile);
+        runner.addPlugin(tapPlugin);
     else
         tapFile = getTapResultFile(resultsDir);
         import('matlab.unittest.plugins.TAPPlugin');
         tapPlugin = TAPPlugin.producingVersion13(tapFile);
+        runner.addPlugin(tapPlugin);
     end
-    runner.addPlugin(tapPlugin);
+    
 end
 
 % Produce Cobertura report (Cobertura report generation is not supported
@@ -73,7 +74,7 @@ if produceCobertura
     BASE_VERSION_COBERTURA_SUPPORT = '9.3';
     
     if verLessThan('matlab',BASE_VERSION_COBERTURA_SUPPORT)
-         warning('MATLAB:testArtifact:coberturaReportNotSupported', 'Producing Cobertura results is not supported in this release.');
+         warning('MATLAB:testArtifact:coberturaReportNotSupported', 'Producing Cobertura code coverage results is not supported in this release.');
     else 
         import('matlab.unittest.plugins.CodeCoveragePlugin');
         mkdirIfNeeded(resultsDir)
@@ -111,9 +112,12 @@ if exportSTMResults
     end
 end
 
-% Produce PDF test report (Not supported below R2016b)
+% Produce PDF test report (Not supported on MacOS platforms and below R2017a)
 if producePDFReport
-    if ~testReportPluginPresent
+    if ismac
+        warning('MATLAB:testArtifact:unSupportedPlatform', ...
+            'Producing a PDF test report is not currently supported on MacOS platforms.');
+    elseif ~testReportPluginPresent
         issuePDFReportUnsupportedWarning;
     else
         mkdirIfNeeded(resultsDir);
@@ -128,6 +132,7 @@ end
 
 results = runner.run(suite);
 failed = any([results.Failed]);
+
 
 function tapToFile = getTapResultFile(resultsDir)
 import('matlab.unittest.plugins.ToFile');
@@ -164,7 +169,7 @@ function filePath = getMLDATXFilePath(resultsDir)
 filePath = fullfile(resultsDir, 'simulinktestresults.mldatx');
 
 function tf = testReportPluginPresent
-BASE_VERSION_REPORTPLUGIN_SUPPORT = '9.1'; % R2016b
+BASE_VERSION_REPORTPLUGIN_SUPPORT = '9.2'; % R2017a 
 
 tf = ~verLessThan('matlab',BASE_VERSION_REPORTPLUGIN_SUPPORT);
 
