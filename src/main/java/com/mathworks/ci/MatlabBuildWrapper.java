@@ -5,12 +5,14 @@ import java.io.IOException;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.springframework.transaction.interceptor.MatchAlwaysTransactionAttributeSource;
 
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
+import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildWrapperDescriptor;
@@ -38,7 +40,7 @@ public class MatlabBuildWrapper extends SimpleBuildWrapper  {
 	}
 	
 	private String getLocalMatlab() {
-		return this.env == null ? getMatlabRoot(): this.env.expand(getMatlabRoot());
+		return this.env == null ? getMatlabInstallationByName(getMatlabRoot()).getHome(): this.env.expand(getMatlabInstallationByName(getMatlabRoot()).getHome());
 	}
 	
 	private void setEnv(EnvVars env) {
@@ -74,11 +76,37 @@ public class MatlabBuildWrapper extends SimpleBuildWrapper  {
 	@Override
 	public void setUp(Context context, Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener,
 			EnvVars initialEnvironment) throws IOException, InterruptedException {
+		int a = 0;
 		//Set Environment variable
 		setEnv(initialEnvironment);
+		String nodeSpecificFileSep = getNodeSpecificFileSeperator(launcher);
+		//initialEnvironment.put("matlabroot", getLocalMatlab() + nodeSpecificFileSep + "bin");
+		launcher.launch().cmdAsSingleString("setenv PATH "+getLocalMatlab() + nodeSpecificFileSep + "bin"+":$PATH").envs(initialEnvironment).join();
+		//Update PATH variable 
+		initialEnvironment.override("PATH+matlabroot", initialEnvironment.get("matlabroot"));	
+		System.out.println("PATH variable after update is"+ initialEnvironment.get("PATH"));
+		
+		if(launcher.launch().cmdAsSingleString("matlab -batch ver").envs(initialEnvironment) .stdout(listener).join()!=0) {
+			System.out.println("Failed to set the System path");
+		}else {
+			System.out.println("Sytem Path is set ready to launch MATLAB");
+			
+		}
 		
 	}
-	 
+	
+	private MatlabInstallation getMatlabInstallationByName(String name) {
+		return  MatlabInstallation.fromName(name);
+		
+	}
+	
+	private String getNodeSpecificFileSeperator(Launcher launcher) {
+	     if (launcher.isUnix()) {
+	            return "/";
+	        } else {
+	            return "\\";
+	        }
+	}
 	  
 	
 }
