@@ -97,20 +97,26 @@ public class MatlabBuildWrapper extends SimpleBuildWrapper  {
             listOfCheckMethods.add(chkMatlabEmpty);
             listOfCheckMethods.add(chkMatlabSupportsRunTests);
 
-            return getFirstErrorOrWarning(listOfCheckMethods, matlabRoot);
+            return getFirstErrorOrWarning(listOfCheckMethods);
         }
 
         public FormValidation getFirstErrorOrWarning(
-                List<Function<String, FormValidation>> validations, String matlabRoot) {
+                List<Function<String, FormValidation>> validations) {
             if (validations == null || validations.isEmpty())
                 return FormValidation.ok();
-            for (Function<String, FormValidation> val : validations) {
-                FormValidation validationResult = val.apply(matlabRoot);
-                if (validationResult.kind.compareTo(Kind.ERROR) == 0
-                        || validationResult.kind.compareTo(Kind.WARNING) == 0) {
-                    return validationResult;
+            try {
+            	final String matlabRoot = MatlabInstallation.fromName(getMatlabRoot()).getHome();
+            	for (Function<String, FormValidation> val : validations) {
+                    FormValidation validationResult = val.apply(matlabRoot);
+                    if (validationResult.kind.compareTo(Kind.ERROR) == 0
+                            || validationResult.kind.compareTo(Kind.WARNING) == 0) {
+                        return validationResult;
+                    }
                 }
+            }catch (Exception e) {
+            	FormValidation.warning("");
             }
+            
             return FormValidation.ok();
         }
 
@@ -163,34 +169,13 @@ public class MatlabBuildWrapper extends SimpleBuildWrapper  {
 	@Override
 	public void setUp(Context context, Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener,
 			EnvVars initialEnvironment) throws IOException, InterruptedException {
-		int a = 0;
 		//Set Environment variable
 		
 		setEnv(initialEnvironment);
 		String nodeSpecificFileSep = getNodeSpecificFileSeperator(launcher);
-		context.env("matlabroot", getLocalMatlab() + nodeSpecificFileSep + "bin");
+		context.env("matlabroot", getLocalMatlab());
 		context.env("PATH+matlabroot", getLocalMatlab() + nodeSpecificFileSep + "bin");
 		System.out.println("This is in Build Wrapper Env variable "+ initialEnvironment.get("matlabroot"));
-		//initialEnvironment.put("matlabroot", getLocalMatlab() + nodeSpecificFileSep + "bin");
-		//launcher.launch().cmdAsSingleString("setenv PATH "+getLocalMatlab() + nodeSpecificFileSep + "bin"+":$PATH").envs(initialEnvironment).join();
-		//Update PATH variable 
-		//context.env("PATH+matlabroot", initialEnvironment.get("matlabroot"));
-		//initialEnvironment.override("PATH+matlabroot",initialEnvironment.get("matlabroot") );	
-		//System.out.println("PATH variable after update is"+ );
-		//FilePath targetWorkspace = new FilePath(launcher.getChannel(), workspace.getRemote());
-		
-        //copyMatlabScratchFileInWorkspace("com/mathworks/ci/MatlabBuildWrapper/setEnv.sh", "setEnv.sh", targetWorkspace);
-        //launcher.launch().cmdAsSingleString("chmod +x setEnv.sh").stdout(listener).join();
-        //launcher.launch().envs(initialEnvironment).cmdAsSingleString("matlab -batch ver").stdout(listener).join();
-		/*if(launcher.launch().cmdAsSingleString("sh setEnv.sh "+initialEnvironment.get("matlabroot")).stdout(listener).join()!=0) {
-			System.out.println("Failed to set the System path");
-		}else {
-			System.out.println("Sytem Path is set ready to launch MATLAB");
-			launcher.launch().cmdAsSingleString("matlab -batch ver").envs(initialEnvironment).stdout(listener).join();
-			
-			
-		}*/
-		
 	}
 	
 	private MatlabInstallation getMatlabInstallationByName(String name) {
@@ -204,19 +189,6 @@ public class MatlabBuildWrapper extends SimpleBuildWrapper  {
 	        } else {
 	            return "\\";
 	        }
-	}
-	
-	  private void copyMatlabScratchFileInWorkspace(String matlabRunnerResourcePath,
-	            String matlabRunnerTarget, FilePath targetWorkspace)
-	            throws IOException, InterruptedException {
-	        final ClassLoader classLoader = getClass().getClassLoader();
-	        FilePath targetFile =
-	                new FilePath(targetWorkspace, matlabRunnerTarget);
-	        InputStream in = classLoader.getResourceAsStream(matlabRunnerResourcePath);
-
-	        targetFile.copyFrom(in);
-	    }
-	  
-	
+	} 
 }
 

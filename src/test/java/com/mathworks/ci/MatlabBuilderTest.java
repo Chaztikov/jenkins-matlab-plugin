@@ -27,8 +27,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlCheckBoxInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.mathworks.ci.MatlabBuilder.RunTestsAutomaticallyOption;
-import com.mathworks.ci.MatlabBuilder.RunTestsWithCustomCommandOption;
+
 
 
 /*
